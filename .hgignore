@@ -1,0 +1,6 @@
+syntax:glob
+# generic
+*.pyc
+.DS_Store
+*.egg-info/*
+sandbox/*
