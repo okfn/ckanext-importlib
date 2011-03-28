@@ -4,6 +4,7 @@ import copy
 from sqlalchemy.util import OrderedDict
 
 import ckan.model as model
+from ckan.controllers.apiv1.package import readonly_keys
 from importer import *
 
 class SpreadsheetData(object):
@@ -267,7 +268,7 @@ class SpreadsheetPackageImporter(PackageImporter):
                 elif title == 'download_url':
                     # deprecated - only in there for compatibility
                     pass
-                elif title == 'ckan_url':
+                elif title in readonly_keys:
                     pass
                 else:
                     if not pkg_fs_dict.has_key('extras'):

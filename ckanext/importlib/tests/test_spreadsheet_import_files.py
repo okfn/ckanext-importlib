@@ -10,6 +10,7 @@ from ckan.tests import *
 from ckanext.importlib import importer
 from ckanext.importlib import spreadsheet_importer
 import ckan.lib.dumper as dumper
+from ckan.controllers.apiv1.package import readonly_keys
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_FILES_DIR = os.path.join(TEST_DIR, 'samples') + '/'
@@ -36,7 +37,7 @@ EXAMPLE_XL_DICTS = [
 
 pkg_to_xl_dict = dumper.PackagesXlWriter.pkg_to_xl_dict
 
-# TO RECREATE TEST FILES, uncomment this test
+# This test recreates the sample files
 class Test0FilesCreation(TestController):
     @classmethod
     def setup_class(self):
@@ -92,7 +93,8 @@ class Test1Import(TestController):
         d = self.anna_xl_dict
         for key, value in d.items():
             assert isinstance(d[key], (str, unicode, types.NoneType)), '%s:%s %s' % (key, value, type(value))
-        for key in ['name', 'license', 'tags', 'groups', 'genre']:
+        for key in ['name', 'license', 'tags', 'groups', 'genre',
+                    'notes_rendered', 'metadata_modified', 'metadata_created']:
             assert d.has_key(key), key
         for key in ['id', 'license_id', 'ratings_average', 'extras']:
             assert not d.has_key(key), key
@@ -182,16 +184,12 @@ def pkg_to_fs_dict(pkg):
     e.g. {'name':'annakarenina', 'resources':{'url':'anna.com'}}'''
     dict_ = pkg.as_dict()
     for key, value in dict_.items():
-        if (key.endswith('_id') and key != 'license_id') or key.startswith('rating') or key == 'id':
+        if key in readonly_keys:
             del dict_[key]
         if key=='resources':
             dict_[key] = [res.as_dict(core_columns_only=True) for res in pkg.resources]
         elif isinstance(value, (list, tuple)):
             dict_[key] = ' '.join(value)
-        elif key in ('license', 'ckan_url'):
-            del dict_[key]
-        elif key in ['metadata_modified', 'metadata_created']:
-            del dict_[key]
     return dict_
 
 def pkg_xl_dict_to_fs_dict(pkg_xl_dict):
