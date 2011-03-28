@@ -163,18 +163,22 @@ class PackageLoader(object):
             search_options = self._get_search_options(field_keys, pkg_dict)
             pkg_name, pkg = self._find_package_by_options(search_options)
 
-        if pkg_name != pkg_dict['name']:
-            # Just in case search is not indexing well, look for the
+        if not pkg_name:
+            # Just in case search is not being well indexed, look for the
             # package under its name as well
-            pkg = self._get_package(pkg_dict['name'])
-            if pkg:
+            try_pkg_name = pkg_dict['name']
+            pkg = self._get_package(try_pkg_name)
+            while pkg:
                 if self._pkg_matches_search_options(pkg, search_options):
                     log.warn('Search failed to find package %r with ref %r, '
                              'but luckily the name is what was expected so loader '
                              'found it anyway.' % (pkg_dict['name'], search_options))
-                    pkg_name = pkg['name']
-                else:
-                    pkg = None
+                    pkg_name = try_pkg_name
+                    break
+                try_pkg_name += '_'
+                pkg = self._get_package(try_pkg_name)
+            else:
+                pkg_name = pkg = None
         return pkg_name, pkg 
 
     def _get_search_options(self, field_keys, pkg_dict):
@@ -197,6 +201,14 @@ class PackageLoader(object):
         return res
 
     def _find_package_by_options(self, search_options):
+        '''The search_options specify values a package must have and this
+        returns the package. If more than one package matching the
+        search_options is found, then LoaderError is raised. If none match
+        then it returns (None, None). If one match is found then it returns:
+        (pkg_name, pkg) where pkg may be None, or returned filled, as a
+        convenience.
+
+        '''
         search = self._package_search(search_options)
         # Search doesn't do exact match (e.g. sql search searches *in*
         # a field), so check matches thoroughly.

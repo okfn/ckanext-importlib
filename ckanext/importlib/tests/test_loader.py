@@ -2,6 +2,7 @@ import urllib2
 import time
 
 from sqlalchemy.util import OrderedDict
+from nose.tools import assert_equal
 
 from ckan import model
 from ckan.lib.create_test_data import CreateTestData
@@ -432,7 +433,8 @@ class TestLoaderInsertingResources(TestLoaderBase):
         assert pkg.extras['last_updated'] == pkg_dict2['extras']['last_updated']
         assert count_pkgs() == num_pkgs + 2, (count_pkgs() - num_pkgs)
         assert len(pkg.resources) == 2, pkg.resources
-        assert pkg.resources[0].url == pkg_dict['resources'][0]['url'], pkg.resources[0].url
+        print pkg.resources
+        assert_equal(pkg.resources[0].url, pkg_dict['resources'][0]['url'])
         assert pkg.resources[0].description == pkg_dict['resources'][0]['description'], pkg.resources[0]['description']
         assert pkg.resources[1].url == pkg_dict2['resources'][0]['url'], pkg.resources[1].url
         assert pkg.resources[1].description == pkg_dict2['resources'][0]['description'], pkg.resources[1]['description']
@@ -584,3 +586,80 @@ class TestLoaderInsertingResourcesWithSynonym(TestLoaderBase):
         pkg = model.Package.by_name(u'pollution_')
         assert pkg
         assert pkg.extras['department'] == pkg_dict3['extras']['department']
+
+class TestLoaderNoIndexing(TestLoaderBase):
+    '''This checks you can re-load a package when the package name
+    is unchanged, yet it is not search indexed (due to a problem with that).
+
+    '''
+    @classmethod
+    def setup_class(self):
+        # No TestSearchIndexer is initialised.
+        if not is_search_supported():
+            raise SkipTest("Search not supported")
+        super(TestLoaderNoIndexing, self).setup_class()
+        self.loader = ReplaceByExtraFieldLoader(self.testclient, 'ref')
+
+    # teardown is in the base class
+
+    def test_0_reload(self):
+        # create initial package
+        num_pkgs = count_pkgs()
+        pkg_dict = {'name':u'pkgname0',
+                    'title':u'Boris',
+                    'extras':{u'ref':'boris'}}
+        assert not model.Package.by_name(pkg_dict['name'])
+        CreateTestData.create_arbitrary([pkg_dict])
+        pkg = model.Package.by_name(pkg_dict['name'])
+        assert pkg
+        assert count_pkgs() == num_pkgs + 1, (count_pkgs() - num_pkgs)
+
+        # load the package with same name and ref
+        pkg_dict = {'name':u'pkgname0',
+                    'title':u'Boris 2',
+                    'extras':{u'ref':'boris'}}
+        self.loader.load_package(pkg_dict)
+        pkg = model.Package.by_name(pkg_dict['name'])
+        assert pkg
+        assert pkg.name == pkg_dict['name']
+        assert pkg.title == pkg_dict['title']
+        assert count_pkgs() == num_pkgs + 1, (count_pkgs() - num_pkgs)
+
+    def test_1_reload_with_underscores(self):
+        # Create decoy package
+        pkg_dict = {'name':u'pkgname1',
+                    'title':u'Old package decoy',
+                    'extras':{u'ref':'decoy'}}
+        assert not model.Package.by_name(pkg_dict['name'])
+        CreateTestData.create_arbitrary([pkg_dict])
+
+        # create initial package
+        num_pkgs = count_pkgs()
+        pkg_dict = {'name':u'pkgname1_',
+                    'title':u'The real Helga',
+                    'extras':{u'ref':'helga'}}
+        assert not model.Package.by_name(pkg_dict['name'])
+        CreateTestData.create_arbitrary([pkg_dict])
+        pkg = model.Package.by_name(pkg_dict['name'])
+        assert pkg
+        assert count_pkgs() == num_pkgs + 1, (count_pkgs() - num_pkgs)
+
+        # load the package with same name and ref
+        pkg_dict = {'name':u'pkgname1',
+                    'title':u'Helga updated',
+                    'extras':{u'ref':'helga'}}
+        self.loader.load_package(pkg_dict)
+        pkg = model.Package.by_name(u'pkgname1_')
+        assert pkg
+        assert_equal(pkg.title, pkg_dict['title'])
+        assert count_pkgs() == num_pkgs + 1, (count_pkgs() - num_pkgs)
+
+        decoy = model.Package.by_name(u'pkgname1')
+        assert decoy
+        assert_equal(decoy.title, u'Old package decoy')
+
+        pkg = model.Package.by_name(u'pkgname1_')
+        assert pkg
+        assert_equal(pkg.title, u'Helga updated')
+
+        assert not model.Package.by_name(u'pkgname1__')
