@@ -17,7 +17,7 @@ left arrow <
 
 <http://ckan.net/>
 
-","active","OKD Compliant::Other (Open)","russian tolstoy","david roger","http://test.ckan.net/package/annakarenina","","2011-03-28T13:34:53.545530","2011-03-28T12:34:53.545530","<p>Some test notes
+","active","OKD Compliant::Other (Open)","russian tolstoy","david roger","http://test.ckan.net/package/annakarenina","","2011-04-07T16:21:20.462097","2011-04-07T16:21:20.462097","<p>Some test notes
 </p>
 
 <h3>A 3rd level heading</h3>
@@ -35,4 +35,4 @@ left arrow <
 </p>
 <p><a href=""http://ckan.net/"">http://ckan.net/</a>
 </p>","romantic novel","book","http://www.annakarenina.com/download/x=1&y=2","plain text","Full text. Needs escaping: "" Umlaut: ü","abc123","alt123","123","http://www.annakarenina.com/index.json","json","Index of the novel","def456","alt345","345"
-"warandpeace","A Wonderful Story","","","","","","","","active","OKD Compliant::Creative Commons Attribution","russian","david","http://test.ckan.net/package/warandpeace","","2011-03-28T13:34:53.545530","2011-03-28T12:34:53.545530","","","","","","","","","","","","","","",""
+"warandpeace","A Wonderful Story","","","","","","","","active","Non-OKD Compliant::Creative Commons Non-Commercial (Any)","russian","david","http://test.ckan.net/package/warandpeace","","2011-04-07T16:21:20.462097","2011-04-07T16:21:20.462097","","","","","","","","","","","","","","",""
