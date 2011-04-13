@@ -4,8 +4,16 @@ import copy
 from sqlalchemy.util import OrderedDict
 
 import ckan.model as model
-from ckan.controllers.apiv1.package import readonly_keys
 from importer import *
+
+readonly_keys = ('id', 'revision_id',
+                 'relationships',
+                 'license',
+                 'ratings_average', 'ratings_count',
+                 'ckan_url',
+                 'metadata_modified',
+                 'metadata_created',
+                 'notes_rendered')
 
 class SpreadsheetData(object):
     '''Represents a spreadsheet file which you can access row by row.''' 

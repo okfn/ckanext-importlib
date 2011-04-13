@@ -9,8 +9,8 @@ import ckan.model as model
 from ckan.tests import *
 from ckanext.importlib import importer
 from ckanext.importlib import spreadsheet_importer
+from ckanext.importlib.spreadsheet_importer import readonly_keys
 import ckan.lib.dumper as dumper
-from ckan.controllers.apiv1.package import readonly_keys
 
 TEST_DIR = os.path.dirname(os.path.abspath(__file__))
 TEST_FILES_DIR = os.path.join(TEST_DIR, 'samples') + '/'
