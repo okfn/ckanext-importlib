@@ -53,6 +53,23 @@ class TestLoaderBase(TestController):
             finally:
                 CreateTestData.delete()        
 
+def assert_equal_dicts(dict1, dict2, only_assert_these_keys=None):
+    only_assert_these_keys = set(only_assert_these_keys) if only_assert_these_keys else set([])
+    dict1_keys = set(dict1.keys()) & only_assert_these_keys
+    dict2_keys = set(dict2.keys()) & only_assert_these_keys
+    key_diffs = dict1_keys ^ dict2_keys
+    if key_diffs:
+        print '%i keys not in both dicts.' % len(key_diffs)
+        print 'Only in dict1: %r' % (dict1_keys - dict2_keys)
+        print 'Only in dict2: %r' % (dict2_keys - dict1_keys)
+        print '\nDict1: %r\nDict2: %r' % \
+              (dict1, dict2)
+        raise AssertionError
+    for key in dict1_keys:
+        if dict1[key] != dict2[key]:
+            print 'Value for key %r is different. %r != %r' % \
+                  (key, dict1[key], dict2[key])
+            raise AssertionError
 
 class TestLoader(TestLoaderBase):
     @classmethod
@@ -70,8 +87,8 @@ class TestLoader(TestLoaderBase):
         res_pkg_dict = self.loader.load_package(pkg_dict)
         assert res_pkg_dict
         pkg = model.Package.by_name(pkg_dict['name'])
-        assert res_pkg_dict == pkg.as_dict(), \
-               '%r != %r' % (res_pkg_dict.items(), pkg.as_dict().items())
+        assert_equal_dicts(res_pkg_dict, pkg.as_dict(),
+                           only_assert_these_keys=('name', 'title'))
         assert pkg
         assert pkg.name == pkg_dict['name']
         assert pkg.title == pkg_dict['title']
