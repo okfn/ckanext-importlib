@@ -50,7 +50,6 @@ class CsvData(SpreadsheetData):
                 if not csvfile:
                     raise ImportException('Empty csv data.')
                 csv_snippet = buf[:1024]
-
             try:
                 dialect = csv.Sniffer().sniff(csv_snippet)
                 dialect.doublequote = True # sniff doesn't seem to pick this up
@@ -58,7 +57,10 @@ class CsvData(SpreadsheetData):
                 dialect = None
             if filepath:
                 csvfile.seek(0)
-            reader = csv.reader(csvfile, dialect)
+            try:
+                reader = csv.reader(csvfile, dialect)
+            except TypeError, inst:
+                raise ImportException('CSV file read error: %s' % inst)
 
         try:
             for line in reader:
