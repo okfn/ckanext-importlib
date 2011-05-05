@@ -46,12 +46,12 @@ class TestLoaderBase(TestController):
         if hasattr(super(TestLoaderBase, self), 'teardown_class'):
             super(TestLoaderBase, self).teardown_class()
         if WSGI_CLIENT:
-            CreateTestData.delete()
+            model.repo.rebuild_db()
         else:
             try:
                 self._stop_ckan_server(self.sub_proc)
             finally:
-                CreateTestData.delete()        
+                model.repo.rebuild_db()
 
 def assert_equal_dicts(dict1, dict2, only_assert_these_keys=None):
     only_assert_these_keys = set(only_assert_these_keys) if only_assert_these_keys else set([])
