@@ -1,2 +1,3 @@
 xlrd
 xlwt
+-e hg+https://bitbucket.org/okfn/ckanclient#egg=ckanclient
