@@ -404,7 +404,13 @@ class ResourceSeriesLoader(PackageLoader):
         if existing_pkg_name:
             if not existing_pkg:
                 existing_pkg = self._get_package(existing_pkg_name)
-            pkg_dict = self._merge_resources(existing_pkg, pkg_dict)
+            try:
+                pkg_dict = self._merge_resources(existing_pkg, pkg_dict)
+            except Exception, e:
+                raise LoaderError('Could not merge resources.\n'
+                                  '  existing_pkg: %r\n'
+                                  '  pkg_dict: %r\n'
+                                  '  Exception: %s'% (existing_pkg, pkg_dict, e))
         super(ResourceSeriesLoader, self)._write_package(pkg_dict,
                                                         existing_pkg_name,
                                                         existing_pkg)

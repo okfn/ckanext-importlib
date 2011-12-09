@@ -1,9 +1,16 @@
+Library for importing datasets into CKAN using the API.
+
 Quickstart
 ==========
 
 To get the code::
 
-    hg clone http://bitbucket.org/okfn/ckanext-importlib
+    hg clone https://github.com/okfn/ckanext-importlib.git
+
+The code also requires installed:
+ * importlib dependencies (pip-requirements.txt)
+ * ckan
+ * ckan dependencies (ckan/pip-requirements.txt)
 
 To install the dependencies into a virtual environment::
 
