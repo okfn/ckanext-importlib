@@ -11,7 +11,6 @@ class ApiCommand(Command):
         super(ApiCommand, self).__init__()
 
     def add_options(self):
-        super(ApiCommand, self).add_options()
         self.parser.add_option("-H", "--host",
                           dest="api_url",
                           help="API URL (e.g.: http://test.ckan.net/api)")

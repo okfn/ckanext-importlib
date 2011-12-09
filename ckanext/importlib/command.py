@@ -41,6 +41,7 @@ class Command(object):
         self.add_options()
         self.parse_args()
         self.setup_logging()
+        super(Command, self).__init__()
 
     @classmethod
     def StandardParser(cls, *av, **kw):

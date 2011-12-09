@@ -42,6 +42,8 @@ class PackageLoader(object):
         self.ckanclient = ckanclient
     
     def load_package(self, pkg_dict):
+        log.info('Loading %s' % pkg_dict['name'])
+        
         # see if the package is already there
         existing_pkg_name, existing_pkg = self._find_package(pkg_dict)
 
@@ -62,7 +64,6 @@ class PackageLoader(object):
         pkg_ids = []
         pkg_names = []
         for pkg_dict in pkg_dicts:
-            log.info('Loading %s' % pkg_dict['name'])
             try:
                 pkg_dict = self.load_package(pkg_dict)
             except LoaderError:
@@ -94,7 +95,7 @@ class PackageLoader(object):
                 pkg_dict = pkg_dict.copy()
                 pkg_dict["name"] = existing_pkg_name
             if self._pkg_has_changed(existing_pkg, pkg_dict):
-                log.info('...updating existing package')
+                log.info('..Updating existing package')
                 try:
                     self.ckanclient.package_entity_put(pkg_dict)
                 except CkanApiError:
@@ -104,9 +105,9 @@ class PackageLoader(object):
                          self.ckanclient.last_message))
                 pkg_dict = self.ckanclient.last_message
             else:
-                log.info('...no change')
+                log.info('..No change')
         else:
-            log.info('...creating package')
+            log.info('..Creating package')
             try:
                 self.ckanclient.package_register_post(pkg_dict)
             except CkanApiError:
@@ -186,8 +187,13 @@ class PackageLoader(object):
         has_a_value = False
         for field_key in field_keys:
             field_value = pkg_dict.get(field_key) or (pkg_dict['extras'].get(field_key) if pkg_dict.has_key('extras') else None)
-            search_options[field_key] = field_value or u''
+##            else:
+##                # This is how solr searches for blank values
+##                # http://stackoverflow.com/questions/4238609/how-to-query-solr-for-empty-fields
+##                #search_options['-%s' % field_key] = u'["" TO *]'
+##                search_options['q'] = u'-%s:["" TO *]' % field_key
             if field_value:
+                search_options[field_key] = field_value or u''
                 has_a_value = True
         if not has_a_value:
             raise LoaderError('Package %r has blank values for identifying fields: %r' % (pkg_dict['name'], field_keys))
@@ -334,14 +340,12 @@ class ResourceSeriesLoader(PackageLoader):
     '''
     def __init__(self, ckanclient,
                  field_keys_to_find_pkg_by,
-                 resource_id_prefix,
                  field_keys_to_expect_invariant=None,
                  synonyms=None):
         super(ResourceSeriesLoader, self).__init__(ckanclient)
-        assert field_keys_to_find_pkg_by and resource_id_prefix
+        assert field_keys_to_find_pkg_by
         assert isinstance(field_keys_to_find_pkg_by, (list, tuple))
         self.field_keys_to_find_pkg_by = field_keys_to_find_pkg_by
-        self.resource_id_prefix = resource_id_prefix
         self.field_keys_to_expect_invariant = field_keys_to_expect_invariant \
                                               or []
         self.synonyms = synonyms or {}
@@ -408,9 +412,9 @@ class ResourceSeriesLoader(PackageLoader):
     def _merge_resources(self, existing_pkg, pkg):
         '''Takes an existing_pkg and merges in resources from the pkg.
         '''
-        log.info("Merging resources into %s" % existing_pkg["name"])
-        log.debug("Existing resources:\n%s" % pformat(existing_pkg["resources"]))
-        log.debug("New resources:\n%s" % pformat(pkg["resources"]))
+        log.info("..Merging resources into %s" % existing_pkg["name"])
+        log.debug("....Existing resources:\n%s" % pformat(existing_pkg["resources"]))
+        log.debug("....New resources:\n%s" % pformat(pkg["resources"]))
 
         # check invariant fields aren't different
         warnings = []
@@ -445,12 +449,9 @@ class ResourceSeriesLoader(PackageLoader):
                 # insert new res
                 merged_dict['resources'].append(pkg_res)
 
-        log.debug("Merged resources:\n%s" % pformat(merged_dict["resources"]))
+        log.debug("....Merged resources:\n%s" % pformat(merged_dict["resources"]))
 
         return merged_dict
 
     def _get_resource_id(self, res):
-        words = re.split('\s', res['description'])
-        for word in words:
-            if word.startswith(self.resource_id_prefix):
-                return word[len(self.resource_id_prefix):]
+        raise NotImplementedError
