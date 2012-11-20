@@ -46,6 +46,7 @@ class PackageLoader(object):
         
         # see if the package is already there
         existing_pkg_name, existing_pkg = self._find_package(pkg_dict)
+        log.debug('Check for dataset already existing: %s', existing_pkg_name)
 
         # if creating a new package, check the name is available
         if not existing_pkg_name:
@@ -54,6 +55,7 @@ class PackageLoader(object):
         # write package
         pkg_dict = self._write_package(pkg_dict, existing_pkg_name, existing_pkg)
         pkg_dict = self.ckanclient.last_message
+        log.debug('Package written: %s %r', pkg_dict['name'], pkg_dict)
         return pkg_dict
 
     def load_packages(self, pkg_dicts):
@@ -193,7 +195,11 @@ class PackageLoader(object):
 ##                #search_options['-%s' % field_key] = u'["" TO *]'
 ##                search_options['q'] = u'-%s:["" TO *]' % field_key
             if field_value:
-                search_options[field_key] = field_value or u''
+                if isinstance(field_value, list):
+                    for value in field_value:
+                        search_options[field_key] = value or u''
+                else:
+                    search_options[field_key] = field_value or u''
                 has_a_value = True
         if not has_a_value:
             raise LoaderError('Package %r has blank values for identifying fields: %r' % (pkg_dict['name'], field_keys))
@@ -259,6 +265,8 @@ class PackageLoader(object):
         if pkg_dict['name'] != preferred_name:
             log.warn('Name %r already exists so new package renamed '
                      'to %r.' % (preferred_name, pkg_dict['name']))
+        else:
+            log.debug('Name %r available', pkg_dict['name'])
                 
     def _pkg_has_changed(self, existing_value, value):
         changed = False
@@ -292,12 +300,15 @@ class PackageLoader(object):
         '''Returns True if pkg_dict matches all of the search_options.'''
         matches = True
         for key, value in search_options.items():
-            if pkg_dict.get(key):
-                if (pkg_dict.get(key) or None) != (value or None):
+            pkg_dict_value = pkg_dict.get(key) or pkg_dict['extras'].get(key)
+
+            if isinstance(pkg_dict_value, list):
+                # e.g. must have the tag or be in that group
+                if value and value not in pkg_dict_value:
                     matches = False
                     break
             else:
-                if (pkg_dict['extras'].get(key) or None) != (value or None):
+                if (pkg_dict_value or None) != (value or None):
                     matches = False
                     break
         return matches
