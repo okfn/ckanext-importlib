@@ -9,6 +9,7 @@ setup(
     url='http://ckan.org/',
     description='CKAN importer and loader library',
     keywords='data packaging component tool server',
+    namespace_packages=['ckanext', 'ckanext.importlib'],
     install_requires=[
         # List of dependencies is moved to pip-requirements.txt
         # to avoid conflicts with Debian packaging.

@@ -10,7 +10,7 @@ from traceback import format_exc
 from pprint import pformat
 import itertools
 
-from ckanclient import CkanApiError
+from ckanclient import CkanApiError, CkanApiNotAuthorizedError
 
 PACKAGE_NAME_MAX_LENGTH = 100 # this should match with ckan/model/package.py
                               # but we avoid requiring ckan in this loader.
@@ -42,7 +42,12 @@ class PackageLoader(object):
         self.ckanclient = ckanclient
     
     def load_package(self, pkg_dict):
-        log.info('Loading %s' % pkg_dict['name'])
+        '''
+        May raise LoaderError or CkanApiNotAuthorizedError (which implies API
+        key is wrong, so stop).
+        '''
+
+        log.info('..Loading "%s"' % pkg_dict['name'])
         
         # see if the package is already there
         existing_pkg_name, existing_pkg = self._find_package(pkg_dict)
@@ -53,6 +58,7 @@ class PackageLoader(object):
             self._ensure_pkg_name_is_available(pkg_dict)
 
         # write package
+        # (May raise LoaderError or CkanApiNotAuthorizedError)
         pkg_dict = self._write_package(pkg_dict, existing_pkg_name, existing_pkg)
         pkg_dict = self.ckanclient.last_message
         log.debug('Package written: %s %r', pkg_dict['name'], pkg_dict)
@@ -60,7 +66,9 @@ class PackageLoader(object):
 
     def load_packages(self, pkg_dicts):
         '''Loads multiple packages.
-        @return results and resulting package names/ids.'''
+
+        @return results and resulting package names/ids.
+        '''
         num_errors = 0
         num_loaded = 0
         pkg_ids = []
@@ -68,6 +76,10 @@ class PackageLoader(object):
         for pkg_dict in pkg_dicts:
             try:
                 pkg_dict = self.load_package(pkg_dict)
+            except CkanApiNotAuthorizedError, e:
+                log.error('Authorization Error (fatal) loading dict "%s":\n%s' % (pkg_dict['name'], format_exc()))
+                num_errors = 'fatal'
+                break
             except LoaderError:
                 log.error('Error loading dict "%s":\n%s' % (pkg_dict['name'], format_exc()))
                 num_errors += 1
@@ -88,7 +100,11 @@ class PackageLoader(object):
         Writes a package (pkg_dict). If there is an existing package to
         be changed, then supply existing_pkg_name. If the caller has already
         got the existing package then pass it in, to save getting it twice.
+
         @return pkg_dict - the package as it was written
+
+        May raise LoaderError or CkanApiNotAuthorizedError (which implies API
+        key is wrong, so stop).
         '''
         if existing_pkg_name:
             if not existing_pkg:
@@ -112,6 +128,8 @@ class PackageLoader(object):
             log.info('..Creating package')
             try:
                 self.ckanclient.package_register_post(pkg_dict)
+            except CkanApiNotAuthorizedError:
+                raise
             except CkanApiError:
                 raise LoaderError(
                     'Error (%s) creating package over API: %s' % \
@@ -214,11 +232,16 @@ class PackageLoader(object):
 
     def _find_package_by_options(self, search_options):
         '''The search_options specify values a package must have and this
-        returns the package. If more than one package matching the
-        search_options is found, then LoaderError is raised. If none match
-        then it returns (None, None). If one match is found then it returns:
-        (pkg_name, pkg) where pkg may be None, or returned filled, as a
-        convenience.
+        returns the package.
+
+        If more than one package matching then it logs an error but returns
+        the first one as we prefer to save the data to one, rather than
+        lose it.
+
+        If none match then it returns (None, None).
+
+        A successful search returns (pkg_name, pkg) where pkg may be None,
+        or returned filled, as a convenience.
 
         '''
         search = self._package_search(search_options)
@@ -233,7 +256,8 @@ class PackageLoader(object):
                    self._pkg_matches_search_options(pkg, search_options):
                 exactly_matching_pkg_names.append(pkg["name"])
         if len(exactly_matching_pkg_names) > 1:
-            raise LoaderError('More than one record matches the search options %r: %r' % (search_options, exactly_matching_pkg_names))
+            log.error('More than one record matches the search options %r: %r (so picking the first one)' % (search_options, exactly_matching_pkg_names))
+            pkg_name = exactly_matching_pkg_names[0]
         elif len(exactly_matching_pkg_names) == 1:
             pkg_name = exactly_matching_pkg_names[0]
         else:
@@ -296,6 +320,19 @@ class PackageLoader(object):
             return True
         return False
 
+    def lower(self, value):
+        '''If given a string, returns lowercase version of it.
+        Blank strings and None values are standardized on None.
+
+        This is allowed for matching, because SOLR search returns values for
+        either case.
+        '''
+        if isinstance(value, basestring):
+            value = value.lower().strip()
+        if not value:
+            return None
+        return value
+
     def _pkg_matches_search_options(self, pkg_dict, search_options):
         '''Returns True if pkg_dict matches all of the search_options.'''
         matches = True
@@ -304,11 +341,12 @@ class PackageLoader(object):
 
             if isinstance(pkg_dict_value, list):
                 # e.g. must have the tag or be in that group
-                if value and value not in pkg_dict_value:
+                if value and self.lower(value) not in \
+                       [self.lower(val) for val in pkg_dict_value]:
                     matches = False
                     break
             else:
-                if (pkg_dict_value or None) != (value or None):
+                if self.lower(pkg_dict_value) != self.lower(value):
                     matches = False
                     break
         return matches
@@ -411,6 +449,9 @@ class ResourceSeriesLoader(PackageLoader):
         Writes a package (pkg_dict). If there is an existing package to
         be changed, then supply existing_pkg_name. If the caller has already
         got the existing package then pass it in, to save getting it twice.
+
+        May raise LoaderError or CkanApiNotAuthorizedError (which implies API
+        key is wrong, so stop).
         '''
         if existing_pkg_name:
             if not existing_pkg:
