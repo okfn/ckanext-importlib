@@ -46,6 +46,7 @@ class TestLoaderBase(TestController):
         if hasattr(super(TestLoaderBase, self), 'teardown_class'):
             super(TestLoaderBase, self).teardown_class()
         if WSGI_CLIENT:
+            model.Session.remove()
             model.repo.rebuild_db()
         else:
             try:
