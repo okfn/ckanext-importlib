@@ -40,6 +40,7 @@ class ApiCommand(Command):
         self.client = CkanClient(base_location=self.options.api_url,
                                  api_key=self.options.api_key,
                                  http_user=self.options.username,
-                                 http_pass=self.options.password)
+                                 http_pass=self.options.password,
+                                 is_verbose=True)
 
         # now do command

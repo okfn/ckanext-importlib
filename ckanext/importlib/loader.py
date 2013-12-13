@@ -200,6 +200,9 @@ class PackageLoader(object):
                 pkg = self._get_package(try_pkg_name)
             else:
                 pkg_name = pkg = None
+
+        log.info('..Search for existing package found: %r with filter: %r',
+                 pkg_name, search_options)
         return pkg_name, pkg 
 
     def _get_search_options(self, field_keys, pkg_dict):
@@ -296,7 +299,7 @@ class PackageLoader(object):
         changed = False
         if isinstance(value, dict):
             for key, sub_value in value.items():
-                if key in ('groups', 'import_source'):
+                if key in ('owner_org', 'import_source'):
                     # loader doesn't setup groups
                     # import_source changing alone doesn't require an update
                     continue
@@ -344,10 +347,14 @@ class PackageLoader(object):
                 if value and self.lower(value) not in \
                        [self.lower(val) for val in pkg_dict_value]:
                     matches = False
+                    log.info('Match failed %s on field %s=%r but should have included %r',
+                             pkg_dict['name'], key, pkg_dict_value, value)
                     break
             else:
                 if self.lower(pkg_dict_value) != self.lower(value):
                     matches = False
+                    log.info('Match failed %s on field %s=%r but should be %r',
+                             pkg_dict['name'], key, pkg_dict_value, value)
                     break
         return matches
         
@@ -390,7 +397,8 @@ class ResourceSeriesLoader(PackageLoader):
     def __init__(self, ckanclient,
                  field_keys_to_find_pkg_by,
                  field_keys_to_expect_invariant=None,
-                 synonyms=None):
+                 synonyms=None,
+                 extras_to_not_overwrite=None):
         super(ResourceSeriesLoader, self).__init__(ckanclient)
         assert field_keys_to_find_pkg_by
         assert isinstance(field_keys_to_find_pkg_by, (list, tuple))
@@ -398,6 +406,7 @@ class ResourceSeriesLoader(PackageLoader):
         self.field_keys_to_expect_invariant = field_keys_to_expect_invariant \
                                               or []
         self.synonyms = synonyms or {}
+        self.extras_to_not_overwrite = extras_to_not_overwrite or []
 
     def _find_package(self, pkg_dict):
         # take a copy of the keys since the find routine may change them
@@ -463,6 +472,11 @@ class ResourceSeriesLoader(PackageLoader):
                                   '  existing_pkg: %r\n'
                                   '  pkg_dict: %r\n'
                                   '  Exception: %s'% (existing_pkg, pkg_dict, e))
+            if self.extras_to_not_overwrite and \
+                    self.extras_to_not_overwrite == ['theme-primary', 'themes-secondary']:
+                if existing_pkg and existing_pkg['extras'].get('theme-primary'):
+                    pkg_dict['extras']['theme-primary'] = existing_pkg['extras']['theme-primary']
+                    pkg_dict['extras']['themes-secondary'] = existing_pkg['extras'].get('themes-secondary')
         super(ResourceSeriesLoader, self)._write_package(pkg_dict,
                                                         existing_pkg_name,
                                                         existing_pkg)
