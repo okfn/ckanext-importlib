@@ -36,11 +36,13 @@ class ApiCommand(Command):
                 self.parser.error('--host must start with "http://"')
             if not '/api' in self.options.api_url:
                 self.parser.error('--host must have "/api" towards the end')
+        user_agent = self.user_agent if hasattr(self, 'user_agent') else 'ckanext-importlib/ApiCommand'
 
         self.client = CkanClient(base_location=self.options.api_url,
                                  api_key=self.options.api_key,
                                  http_user=self.options.username,
                                  http_pass=self.options.password,
-                                 is_verbose=True)
+                                 is_verbose=True,
+                                 user_agent=user_agent)
 
         # now do command
