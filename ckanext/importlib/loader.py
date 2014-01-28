@@ -23,7 +23,7 @@ class LoaderError(Exception):
     pass
 
 class PackageLoader(object):
-    def __init__(self, ckanclient):
+    def __init__(self, ckanclient, stats=None):
         '''
         Loader for packages into a CKAN server. Takes package dictionaries
         and loads them using the ckanclient. Can also add packages to a
@@ -40,6 +40,7 @@ class PackageLoader(object):
         # Note: we pass in the ckanclient (rather than deriving from it), so
         # that we can choose to pass a test client instead of a real one.
         self.ckanclient = ckanclient
+        self._stats = stats
     
     def load_package(self, pkg_dict):
         '''
@@ -61,6 +62,7 @@ class PackageLoader(object):
         # (May raise LoaderError or CkanApiNotAuthorizedError)
         pkg_dict = self._write_package(pkg_dict, existing_pkg_name, existing_pkg)
         pkg_dict = self.ckanclient.last_message
+        
         log.debug('Package written: %s %r', pkg_dict['name'], pkg_dict)
         return pkg_dict
 
@@ -79,10 +81,12 @@ class PackageLoader(object):
             except CkanApiNotAuthorizedError, e:
                 log.error('Authorization Error (fatal) loading dict "%s":\n%s' % (pkg_dict['name'], format_exc()))
                 num_errors = 'fatal'
+                self._add_stat('Authorization Error %s' % e, pkg_dict)
                 break
-            except LoaderError:
+            except LoaderError, e:
                 log.error('Error loading dict "%s":\n%s' % (pkg_dict['name'], format_exc()))
                 num_errors += 1
+                self._add_stat('Error %s' % e, pkg_dict)
             else:
                 pkg_ids.append(pkg_dict['id'])
                 pkg_names.append(pkg_dict['name'])
@@ -91,6 +95,13 @@ class PackageLoader(object):
                 'pkg_ids':pkg_ids,
                 'num_loaded':num_loaded,
                 'num_errors':num_errors}
+
+    def _add_stat(self, message, pkg_dict):
+        if not self._stats:
+            return
+        pub_date = pkg_dict.get('extras', {}).get('date_released')
+        item_id = '%s (%s)' % (pkg_dict['title'], pub_date)
+        return self._stats.add(message, item_id)
 
     def _find_package(self, pkg_dict):
         raise NotImplemented
@@ -122,8 +133,10 @@ class PackageLoader(object):
                         (self.ckanclient.last_status,
                          self.ckanclient.last_message))
                 pkg_dict = self.ckanclient.last_message
+                self._add_stat('Updated package', pkg_dict)
             else:
                 log.info('..No change')
+                self._add_stat('No change', pkg_dict)
         else:
             log.info('..Creating package')
             try:
@@ -136,6 +149,7 @@ class PackageLoader(object):
                     (self.ckanclient.last_status,
                      self.ckanclient.last_message))
             pkg_dict = self.ckanclient.last_message
+            self._add_stat('Created package', pkg_dict)
         return pkg_dict
 
     def add_pkg_to_group(self, pkg_name, group_name):
@@ -369,8 +383,8 @@ class ReplaceByNameLoader(PackageLoader):
 class ReplaceByExtraFieldLoader(PackageLoader):
     '''Loader finds a package based on a unique id in an extra field.
     Loader replaces the package with the supplied pkg_dict.'''
-    def __init__(self, ckanclient, package_id_extra_key):
-        super(ReplaceByExtraFieldLoader, self).__init__(ckanclient)
+    def __init__(self, ckanclient, package_id_extra_key, stats=None):
+        super(ReplaceByExtraFieldLoader, self).__init__(ckanclient, stats)
         assert package_id_extra_key
         self.package_id_extra_key = package_id_extra_key
 
@@ -398,8 +412,9 @@ class ResourceSeriesLoader(PackageLoader):
                  field_keys_to_find_pkg_by,
                  field_keys_to_expect_invariant=None,
                  synonyms=None,
-                 extras_to_not_overwrite=None):
-        super(ResourceSeriesLoader, self).__init__(ckanclient)
+                 extras_to_not_overwrite=None,
+                 stats=None):
+        super(ResourceSeriesLoader, self).__init__(ckanclient, stats=stats)
         assert field_keys_to_find_pkg_by
         assert isinstance(field_keys_to_find_pkg_by, (list, tuple))
         self.field_keys_to_find_pkg_by = field_keys_to_find_pkg_by
